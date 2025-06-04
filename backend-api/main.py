@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from procesamiento.parser_facturas import parse_text_ocr
 import shutil, os
 
 from google.cloud import vision
@@ -39,3 +40,21 @@ async def recibir_factura(file: UploadFile = File(...)):
         "archivo": file.filename,
         "texto_detectado": text
     })
+
+@app.get("/procesar-factura-pdf")
+def procesar_factura_pdf():
+    from ocr_google_document import procesar_pdf_en_gcs, descargar_texto_ocr
+
+    ruta_pdf = "gs://facturas-escandaia/pendientes/Factura2206163457.pdf"
+    salida = procesar_pdf_en_gcs(ruta_pdf)
+
+    import time
+    time.sleep(10)  # o bucle inteligente en el futuro
+
+    texto = descargar_texto_ocr(salida)
+    datos = parse_text_ocr(texto)
+
+    return {
+        "mensaje": "Factura procesada",
+        "datos_estructurados": datos
+    }
