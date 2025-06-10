@@ -1,67 +1,87 @@
 import re
 from datetime import datetime
 
-def parse_text_ocr(text: str) -> dict:
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
+def parse_text_ocr(texto: str) -> dict:
+    proveedor = None
+    fecha = None
+    numero_factura = None
+    total = None
+    productos = []
 
-    data = {
-        "proveedor": None,
-        "fecha": None,
-        "numero_factura": None,
-        "productos": [],
-        "total": None
+    texto = texto.replace('\r', '').strip()
+    lineas = texto.split('\n')
+
+    # --- Proveedor ---
+    for linea in lineas[:15]:
+        if any(palabra in linea.lower() for palabra in ["s.l", "slu", "sociedad", "distribuciones", "paruben", "asador"]):
+            proveedor = linea.strip()
+            break
+
+    # --- Fecha ---
+    patrones_fecha = [
+        r"\b(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})\b",
+        r"Fecha\s*(?:factura|emisión)?[:\-]?\s*(\d{1,2}[-/\.]\d{1,2}[-/\.]\d{2,4})"
+    ]
+    for linea in lineas:
+        for patron in patrones_fecha:
+            match = re.search(patron, linea, re.IGNORECASE)
+            if match:
+                fecha = match.group(1)
+                break
+        if fecha:
+            break
+
+    # --- Número de factura ---
+    patrones_factura = [
+        r"factura\s*n[ºo]?[\.]?\s*([A-Z0-9\-\/]+)",
+        r"n[ºo]?\s*factura[:\-]?\s*([A-Z0-9\-\/]+)",
+        r"f[\/\-]\s?([0-9]+)",
+        r"([A-Z]{2,5}\d{6,})"
+    ]
+    for linea in lineas:
+        for patron in patrones_factura:
+            match = re.search(patron, linea, re.IGNORECASE)
+            if match:
+                numero_factura = match.group(1)
+                break
+        if numero_factura:
+            break
+
+    # --- Total ---
+    for linea in reversed(lineas):
+        if "total" in linea.lower():
+            match = re.search(r"([\d]+\,[\d]{2})", linea)
+            if match:
+                total = match.group(1).replace(",", ".")
+                break
+
+    # --- Productos (estructura libre, heurística por bloques) ---
+    i = 0
+    while i < len(lineas) - 1:
+        linea = lineas[i].strip()
+        sig = lineas[i+1].strip() if i+1 < len(lineas) else ""
+
+        # Si la línea parece descripción y la siguiente contiene precio
+        if re.search(r"[A-Za-z]{3,}", linea) and re.search(r"\d+,\d{2}", sig):
+            descripcion = linea
+            posibles_numeros = re.findall(r"\d+,\d{2}", sig)
+            cantidad_match = re.search(r"\d+", sig)
+
+            producto = {
+                "descripcion": descripcion,
+                "cantidad": int(cantidad_match.group()) if cantidad_match else None,
+                "precio_unitario": float(posibles_numeros[0].replace(",", ".")) if len(posibles_numeros) > 0 else None,
+                "total": float(posibles_numeros[-1].replace(",", ".")) if len(posibles_numeros) > 1 else None
+            }
+            productos.append(producto)
+            i += 2
+        else:
+            i += 1
+
+    return {
+        "proveedor": proveedor,
+        "fecha": fecha,
+        "numero_factura": numero_factura,
+        "productos": productos,
+        "total": float(total) if total else None
     }
-
-    # Regex útiles
-    fecha_regex = r"\d{1,2}[./-]\d{1,2}[./-]\d{2,4}"
-    precio_regex = r"\d+[.,]\d{2}"
-    proveedor_regex = re.compile(r".*(s\.l|slu|sa|proveedor|distribuciones)", re.IGNORECASE)
-    total_regex = re.compile(r"(total|importe.*total)", re.IGNORECASE)
-
-    for line in lines:
-        # Proveedor (heurística)
-        if not data["proveedor"] and proveedor_regex.search(line):
-            data["proveedor"] = line.strip()
-
-        # Fecha
-        if not data["fecha"]:
-            match = re.search(fecha_regex, line)
-            if match:
-                fecha_txt = match.group().replace("-", "/").replace(".", "/")
-                try:
-                    data["fecha"] = datetime.strptime(fecha_txt, "%d/%m/%Y").date().isoformat()
-                except:
-                    pass
-
-        # Número de factura
-        if not data["numero_factura"]:
-            if "factura" in line.lower():
-                num_match = re.search(r"\d{6,}", line)  # 6 dígitos o más
-                if num_match:
-                    data["numero_factura"] = num_match.group()
-
-        # Total de factura
-        if not data["total"] and total_regex.search(line):
-            match = re.search(precio_regex, line)
-            if match:
-                data["total"] = float(match.group().replace(",", "."))
-
-        # Posible producto (muy general, para refinar)
-        producto_match = re.match(
-            r"(.+?)\s+(\d+(?:[.,]\d+)?)(\s*(kg|g|l|ud|unidad(?:es)?))?\s+(\d+[.,]\d{2})",
-            line.lower()
-        )
-        if producto_match:
-            nombre = producto_match.group(1).strip()
-            cantidad = float(producto_match.group(2).replace(",", "."))
-            unidad = producto_match.group(4) if producto_match.group(4) else ""
-            precio = float(producto_match.group(5).replace(",", "."))
-
-            data["productos"].append({
-                "nombre": nombre,
-                "cantidad": cantidad,
-                "unidad": unidad,
-                "precio": precio
-            })
-
-    return data
