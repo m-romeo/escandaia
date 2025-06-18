@@ -2,10 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  // Usuario introducido en el formulario
   const [usuario, setUsuario] = useState("");
+  // Contraseña introducida
   const [password, setPassword] = useState("");
-  const navigate = useNavigate();
+  const navigate = useNavigate();  // TODO: usar navigate para redireccionar
 
+  // Comprueba las credenciales hardcoded
   function manejarLogin(e: React.FormEvent) {
     e.preventDefault();
 
