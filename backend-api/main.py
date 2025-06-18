@@ -5,6 +5,10 @@ from fastapi.encoders import jsonable_encoder
 from fastapi import Body
 from procesamiento.parser_facturas import parse_text_ocr
 import shutil, os
+import subprocess, os
+from pathlib import Path
+import sys
+from utils.procesar_factura import procesar_factura_y_actualizar_excel
 
 from google.cloud import vision
 from google.cloud import storage
@@ -240,7 +244,7 @@ def guardar_datos_en_db():
 @app.get("/facturas")
 def listar_facturas():
     from sqlmodel import Session, select
-    with Session(engine) as session:
+    with Session(engine) as session:  # engine = create_engine("sqlite:///facturas.db")
         consulta = select(Factura).order_by(Factura.creada_en.desc())
         resultados = session.exec(consulta).all()
         return JSONResponse(content=jsonable_encoder(resultados))
@@ -298,3 +302,33 @@ def borrar_factura(factura_id: int):
         session.commit()
         return {"mensaje": f"Factura {factura_id} eliminada correctamente"}
 
+@app.get("/exportar-excel")
+def exportar_excel():
+    script = Path(__file__).parent / "exportar_a_excel.py"
+    result = subprocess.run(
+        [sys.executable, str(script)],        # ← usa sys.executable
+        capture_output=True,
+        text=True
+    )
+    if result.returncode != 0:
+        return {"error": result.stderr}
+    return {"mensaje": result.stdout.strip()}
+
+@app.post("/procesar-todo")
+def procesar_todo():
+    from pathlib import Path
+    from utils.procesar_factura import procesar_factura_y_actualizar_excel
+
+    carpeta = Path("facturas_recibidas")
+    if not carpeta.exists():
+        return {"error": "La carpeta 'facturas_recibidas' no existe"}
+
+    resultados = []
+    for archivo in carpeta.glob("*.pdf"):
+        try:
+            procesar_factura_y_actualizar_excel(str(archivo))
+            resultados.append({"archivo": archivo.name, "estado": "procesado"})
+        except Exception as e:
+            resultados.append({"archivo": archivo.name, "estado": "error", "detalle": str(e)})
+
+    return {"resultados": resultados}
