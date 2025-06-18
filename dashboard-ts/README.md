@@ -52,3 +52,18 @@ export default tseslint.config({
   },
 })
 ```
+## Proyecto: Dashboard de facturas
+
+Esta carpeta contiene el frontend en React utilizado para visualizar las facturas capturadas mediante OCR. El backend ofrece una API FastAPI accesible en `http://localhost:8000`.
+
+### Estructura de `src/`
+- **`main.tsx`**: punto de entrada que define las rutas (`/` y `/login`) y comprueba en `localStorage` si el usuario está autenticado.
+- **`App.tsx`**: vista principal. Obtiene las facturas desde el backend, permite filtrarlas por proveedor y fechas, exportar a CSV y ver el detalle en un diálogo.
+- **`Login.tsx`**: formulario básico de acceso. Guarda una marca de autenticación en `localStorage`.
+- **`components/ui/`**: componentes de interfaz basados en [shadcn/ui](https://ui.shadcn.com) como `Button`, `Dialog` y `Table`.
+- **`lib/utils.ts`**: función `cn` para componer clases de Tailwind.
+
+### Sugerencias de mejora
+- Extraer las llamadas a `fetch` en un fichero `lib/api.ts` con funciones reutilizables (`getFacturas`, `postFactura`, ...).
+- Separar las vistas en una carpeta `pages/` y mover los componentes reutilizables a `components/`.
+- Implementar hooks para filtros y paginación si la lógica crece.

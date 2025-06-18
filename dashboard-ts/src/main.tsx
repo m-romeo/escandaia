@@ -1,3 +1,7 @@
+/**
+ * Punto de entrada de la aplicación.
+ * Define las rutas y controla el acceso mediante localStorage.
+ */
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -10,6 +14,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <Routes>
         <Route
+            // Si no estamos autenticados redirigimos al login
           path="/"
           element={
             localStorage.getItem("autenticado") === "true" ? (

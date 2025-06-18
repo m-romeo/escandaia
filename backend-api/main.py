@@ -1,8 +1,14 @@
-from fastapi import FastAPI, File, UploadFile
+"""API principal del backend.
+
+Contiene los endpoints necesarios para recibir facturas, procesar PDFs con
+Google Vision y exponer los datos almacenados en la base de datos. En esta
+aplicación se utiliza SQLite como sistema de persistencia mediante SQLModel.
+"""
+
+from fastapi import Body, FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
-from fastapi import Body
 from procesamiento.parser_facturas import parse_text_ocr
 import shutil, os
 import subprocess, os
@@ -33,7 +39,9 @@ engine = create_engine("sqlite:///facturas.db")
 
 @app.post("/factura")
 async def recibir_factura(file: UploadFile = File(...)):
-    # Guardar la imagen recibida
+    """Guardar una imagen de factura y extraer texto con OCR."""
+
+    # Guardar la imagen recibida en disco
     os.makedirs("facturas_recibidas", exist_ok=True)
     file_path = f"facturas_recibidas/{file.filename}"
     with open(file_path, "wb") as buffer:
@@ -59,6 +67,9 @@ async def recibir_factura(file: UploadFile = File(...)):
 
 @app.get("/procesar-factura-pdf")
 def procesar_factura_pdf():
+    """Procesa un PDF de ejemplo alojado en GCS y devuelve datos estructurados."""
+
+    # Funciones auxiliares se importan aquí para evitar dependencias globales
     from ocr_google_document import procesar_pdf_en_gcs, descargar_texto_ocr
 
     ruta_pdf = "gs://facturas-escandaia/pendientes/Factura2206163457.pdf"
@@ -77,6 +88,8 @@ def procesar_factura_pdf():
 
 @app.get("/procesar-pdf-ocr")
 def procesar_factura_pdf(pdf: str):
+    """Procesa el PDF indicado por nombre y devuelve el texto extraído."""
+
     from ocr_google_document import procesar_pdf_en_gcs, descargar_texto_ocr
 
     ruta_pdf = f"gs://facturas-escandaia/pendientes/{pdf}"
@@ -93,6 +106,8 @@ def procesar_factura_pdf(pdf: str):
 
 @app.get("/procesar-nuevos-pdfs")
 def procesar_nuevos_pdfs():
+    """Procesa en lote todos los PDFs pendientes en GCS."""
+
     from ocr_google_document import procesar_pdf_en_gcs, descargar_texto_ocr
     import time
 
@@ -139,6 +154,8 @@ def procesar_nuevos_pdfs():
 
 @app.get("/extraer-datos-de-facturas")
 def extraer_datos_de_facturas():
+    """Descarga los JSON de OCR y extrae la información estructurada."""
+
     from procesamiento.parser_facturas import parse_text_ocr
     from ocr_google_document import descargar_texto_ocr
     from google.cloud import storage
@@ -174,6 +191,8 @@ def extraer_datos_de_facturas():
 
 @app.get("/guardar-datos-en-db")
 def guardar_datos_en_db():
+    """Guarda en la base de datos los datos extraídos de las facturas."""
+
     from procesamiento.parser_facturas import parse_text_ocr
     from ocr_google_document import descargar_texto_ocr
     from google.cloud import storage
@@ -243,6 +262,8 @@ def guardar_datos_en_db():
 
 @app.get("/facturas")
 def listar_facturas():
+    """Devuelve todas las facturas almacenadas ordenadas por fecha."""
+
     from sqlmodel import Session, select
     with Session(engine) as session:  # engine = create_engine("sqlite:///facturas.db")
         consulta = select(Factura).order_by(Factura.creada_en.desc())
@@ -251,6 +272,8 @@ def listar_facturas():
 
 @app.get("/lineas-factura/{factura_id}")
 def obtener_lineas_factura(factura_id: int):
+    """Obtiene las líneas de una factura concreta."""
+
     from sqlmodel import Session, select
     with Session(engine) as session:
         consulta = select(LineaFactura).where(LineaFactura.factura_id == factura_id)
@@ -260,6 +283,8 @@ def obtener_lineas_factura(factura_id: int):
 
 @app.post("/facturas")
 def crear_factura(factura: Factura = Body(...)):
+    """Inserta manualmente una factura en la base de datos."""
+
     with Session(engine) as session:
         session.add(factura)
         session.commit()
@@ -268,6 +293,8 @@ def crear_factura(factura: Factura = Body(...)):
 
 @app.get("/facturas/{factura_id}")
 def obtener_factura(factura_id: int):
+    """Obtiene una factura por su ID."""
+
     with Session(engine) as session:
         factura = session.get(Factura, factura_id)
         if not factura:
@@ -277,6 +304,8 @@ def obtener_factura(factura_id: int):
 
 @app.put("/facturas/{factura_id}")
 def actualizar_factura(factura_id: int, datos: dict = Body(...)):
+    """Actualiza campos específicos de una factura existente."""
+
     with Session(engine) as session:
         factura = session.get(Factura, factura_id)
         if not factura:
@@ -294,6 +323,8 @@ def actualizar_factura(factura_id: int, datos: dict = Body(...)):
 
 @app.delete("/facturas/{factura_id}")
 def borrar_factura(factura_id: int):
+    """Elimina una factura de la base de datos."""
+
     with Session(engine) as session:
         factura = session.get(Factura, factura_id)
         if not factura:
