@@ -1,3 +1,7 @@
+/**
+ * Vista principal del dashboard.
+ * Obtiene facturas, permite filtrarlas y exportarlas.
+ */
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { unparse } from "papaparse";
@@ -19,6 +23,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+// Representa una factura devuelta por el backend
+
 type Factura = {
   id: number;
   nombre_archivo: string;
@@ -28,13 +34,19 @@ type Factura = {
 };
 
 function App() {
-
+  // Lista de facturas obtenidas del backend
   const [facturas, setFacturas] = useState<Factura[]>([]);
+  // Nombre del proveedor para filtrar
   const [filtroProveedor, setFiltroProveedor] = useState("");
+  // Inicio del rango de fechas
   const [fechaInicio, setFechaInicio] = useState("");
+  // Fin del rango de fechas
   const [fechaFin, setFechaFin] = useState("");
+  // Factura seleccionada para mostrar en el diálogo
   const [facturaSeleccionada, setFacturaSeleccionada] = useState<Factura | null>(null);
 
+
+  // Al montar el componente obtenemos las facturas del backend
   useEffect(() => {
     fetch("http://localhost:8000/facturas")
       .then((res) => res.json())
@@ -42,6 +54,7 @@ function App() {
       .catch((err) => console.error("Error al cargar facturas:", err));
   }, []);
 
+  // Filtramos facturas por proveedor y rango de fechas
   const facturasFiltradas = facturas.filter((f) => {
     const coincideProveedor = f.proveedor
       .toLowerCase()
@@ -57,6 +70,7 @@ function App() {
     return coincideProveedor && dentroDelRango;
   });
 
+  // Genera un CSV con las facturas filtradas y lo descarga
   function exportarFacturasCSV(facturas: Factura[]) {
     const csv = unparse(
       facturas.map((f) => ({
@@ -129,6 +143,7 @@ function App() {
         Exportar a CSV
       </Button>
 
+        {/* Tabla con las facturas filtradas */}
       <Table>
         <TableHeader>
           <TableRow>
@@ -140,6 +155,7 @@ function App() {
           </TableRow>
         </TableHeader>
         <TableBody>
+            {/* Cada fila abre un modal con la información completa */}
           {facturasFiltradas.map((f) => (
             <TableRow
               key={f.id}
@@ -156,6 +172,7 @@ function App() {
         </TableBody>
       </Table>
 
+        {/* Dialogo modal con el detalle de la factura seleccionada */}
       <Dialog open={!!facturaSeleccionada} onOpenChange={() => setFacturaSeleccionada(null)}>
         <DialogContent>
           <DialogHeader>
