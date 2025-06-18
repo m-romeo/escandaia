@@ -1,7 +1,12 @@
+"""Heurísticas para extraer datos estructurados de una factura a partir del
+texto devuelto por OCR."""
+
 import re
 from datetime import datetime
 
 def parse_text_ocr(texto: str) -> dict:
+    """Convierte el texto plano de una factura en un diccionario de datos."""
+
     proveedor = None
     fecha = None
     numero_factura = None
@@ -13,6 +18,7 @@ def parse_text_ocr(texto: str) -> dict:
 
     # --- Proveedor ---
     for linea in lineas[:15]:
+        # Buscamos indicios de nombre de empresa en las primeras líneas
         if any(palabra in linea.lower() for palabra in ["s.l", "slu", "sociedad", "distribuciones", "paruben", "asador"]):
             proveedor = linea.strip()
             break
@@ -62,6 +68,7 @@ def parse_text_ocr(texto: str) -> dict:
         sig = lineas[i+1].strip() if i+1 < len(lineas) else ""
 
         # Si la línea parece descripción y la siguiente contiene precio
+        # Consideramos que es un producto si la línea es texto y la siguiente tiene precios
         if re.search(r"[A-Za-z]{3,}", linea) and re.search(r"\d+,\d{2}", sig):
             descripcion = linea
             posibles_numeros = re.findall(r"\d+,\d{2}", sig)
@@ -85,3 +92,4 @@ def parse_text_ocr(texto: str) -> dict:
         "productos": productos,
         "total": float(total) if total else None
     }
+

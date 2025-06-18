@@ -1,8 +1,12 @@
+"""Utilidades para ejecutar OCR sobre PDFs almacenados en Google Cloud Storage."""
+
 from google.cloud import vision_v1 as vision
 from google.cloud.vision_v1 import types
 import time
 
 def procesar_pdf_en_gcs(gcs_input_uri: str):
+    """Lanza un trabajo asíncrono de OCR sobre un PDF en GCS."""
+
     client = vision.ImageAnnotatorClient()
 
     # Configuración de OCR
@@ -37,8 +41,11 @@ from google.cloud import storage
 import json
 
 def descargar_texto_ocr(gcs_output_uri: str):
+    """Descarga el archivo JSON resultante del OCR y devuelve el texto completo."""
+
     # gcs_output_uri = 'gs://bucket/nombre_output/'
     bucket_name = gcs_output_uri.replace("gs://", "").split("/")[0]
+    # Carpeta donde vision guardó los resultados
     prefix = "/".join(gcs_output_uri.replace("gs://", "").split("/")[1:])
 
     storage_client = storage.Client()
@@ -59,3 +66,4 @@ def descargar_texto_ocr(gcs_output_uri: str):
     full_text = data["responses"][0]["fullTextAnnotation"]["text"]
 
     return full_text
+
